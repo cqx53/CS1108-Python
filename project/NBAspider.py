@@ -2,6 +2,7 @@ import requests
 import re
 import csv
 # import numpy as np
+from parsel import Selector
 
 class NBASpider:
  
@@ -14,13 +15,12 @@ class NBASpider:
 
 
 
-
-
-
         # self.schedule_url = "https://www.basketball-reference.com/leagues/NBA_2022_games-{}.html"
         self.schedule_url = "https://www.basketball-reference.com/leagues/NBA_{}_games-{}.html"
 
 
+        # self.advanced_team_url = "https://www.basketball-reference.com/leagues/NBA_2016.html"
+        self.advanced_team_url = "https://www.basketball-reference.com/leagues/NBA_{}.html"
 
 
 
@@ -169,31 +169,100 @@ class NBASpider:
         csv_writer = csv.DictWriter(f, fieldnames=heads)
         csv_writer.writeheader()
 
-
-
-        # debug
-        # print(rows)
-
-
-
-
-
         for row in rows:
             dict = {}
             if heads and len(heads) > 0:
                 for i, v in enumerate(heads):
                     dict[v] = row[i] if len(row) > i else ""
             csv_writer.writerow(dict)
+
+
+
+
+    def get_advanced_team_datas(self, table):
+        trs = table.xpath('./tbody/tr')
+        for tr in trs:
+            rk = tr.xpath('./th/text()').get()
+            datas = tr.xpath('./td[@data-stat!="DUMMY"]/text()').getall()
+            datas[0] = tr.xpath('./td/a/text()').get()
+            datas.insert(0, rk)
+            yield datas
+
+    # bug fixED: https://blog.csdn.net/qq_63585329/article/details/143810588
+    def parse_advanced_team(self, html):
+        """
+        通过xpath从获取到的html页面数据中表头和各行数据
+        :param html 爬取到的页面数据
+        :return: heads表头
+                 datas 列表内容
+        """
+
+        # print(type(html))
+        selector = Selector(text=html) # <- 問題在這邊!
+
+
+
+
+        # 1. 获取对应的table
+        table = selector.xpath('//table[@id="advanced-team"]')
+
+        
+        # 2. 从table中匹配出表头
+        res = table.xpath('./thead/tr')[1].xpath('./th/text()').getall()
+        heads = []
+        for i, head in enumerate(res):
+            if '\xa0' in head:
+                continue
+            heads.append(head)
+        # 3. 匹配出表的各行数据
+        table_data = self.get_advanced_team_datas(table)
+        return heads, table_data
+    
+    def save_csv_advanced(self, title, heads, rows):
+        f = open(title + '.csv', mode='w', encoding='utf-8', newline='')
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(heads)
+        for row in rows:
+            csv_writer.writerow(row)
+
+        f.close()
+
+    def crawl_advanced_team(self):
+        start_year = 2020
+        end_year = 2024
+
+        for year in range(start_year, end_year):
+            res = self.send(self.advanced_team_url.format(year)) # <- 真的有爬到東西
+
+            heads, datas = self.parse_advanced_team(res) # <- 問題出在這個parse_advanced_team
+            # self.parse_advanced_team(res)
+            self.save_csv_advanced("advanced_team_" + str(year), heads, datas)
+
  
-    def crawl_team_opponent(self):
-        print('line 171 is undergoing execution')
+    def crawl_team_opponent(self): 
+        # print('line 171 is undergoing execution')
+
+        start_year = 2021
+        end_year = 2024
+
+        for year in range(start_year, end_year + 1):
+            res = self.send(self.url.format(year))
+
+            team_heads, team_datas, opponent_heads, opponent_datas = self.parse(res)
+
+            self.save_csv("team_" + str(year) , team_heads, team_datas)
+
+            self.save_csv("opponent_" + str(year), opponent_heads, opponent_datas)
+
+
+
         # 1. 发送请求
-        res = self.send(self.url)
+        # res = self.send(self.url)
         # 2. 解析数据
-        team_heads, team_datas, opponent_heads, opponent_datas = self.parse(res)
+        # team_heads, team_datas, opponent_heads, opponent_datas = self.parse(res) 
         # 3. 保存数据为csv
-        self.save_csv("team", team_heads, team_datas)
-        self.save_csv("opponent", opponent_heads, opponent_datas)
+        # self.save_csv("team", team_heads, team_datas)
+        # self.save_csv("opponent", opponent_heads, opponent_datas)
  
     def crawl_schedule(self): # 爬所有數據
         months = ["october", "november", "december", "january", "february", "march", "april", "may", "june", "july"] # 這個必須要加上july因為 -> nba他媽的每一年季後賽開打的時間不一樣, 更間接導致結束的時間也不一樣
@@ -238,7 +307,9 @@ class NBASpider:
             # self.save_csv("schedule_"+month, heads, datas)
   
     def crawl(self):
-        self.crawl_schedule()
+        # self.crawl_schedule()
+        # self.crawl_team_opponent()
+        self.crawl_advanced_team()
 
 if __name__ == '__main__':
     # 运行爬虫
