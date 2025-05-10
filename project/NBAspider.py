@@ -53,6 +53,8 @@ class NBASpider:
         :return: team_heads表头
                  team_datas 列表内容
         """
+
+        # print('this is message from line 57')
         # 1. 正则匹配数据所在的table
         team_table = re.search('<table.*?id="per_game-team".*?>(.*?)</table>', html, re.S).group(1)
         # 2. 正则从table中匹配出表头
@@ -103,17 +105,25 @@ class NBASpider:
         :param table_html 解析出来的table数据
         :return:
         """
-        tboday = re.search('<tbody>(.*?)</tbody>', table_html, re.S).group(1) # <- 現在問題應該是這個正則表達式有問題
+        tboday = re.search('<tbody>(.*?)</tbody>', table_html, re.S).group(1) # <- 現在問題應該是這個正則表達式有問題: fixed
         contents = re.findall('<tr.*?>(.*?)</tr>', tboday, re.S)
+
+        # print(len(contents))
+
+
+        # 這裡有一個for loop
         for oc in contents:
             rk = re.findall('<th.*?><a.*?>(.*?)</a></th>', oc)
             datas = re.findall('<td.*?>(.*?)</td>', oc, re.S)
             if datas and len(datas) > 0:
                 datas[1] = re.search('<a.*?>(.*?)</a>', datas[1]).group(1)
+                
                 datas[3] = re.search('<a.*?>(.*?)</a>', datas[3]).group(1)
+
                 datas[5] = re.search('<a.*?>(.*?)</a>', datas[5]).group(1)
  
             datas = rk + datas
+
             # yield 声明这个方法是一个生成器， 返回的值是datas
             yield datas
 
@@ -128,10 +138,12 @@ class NBASpider:
         # 1. 正则匹配数据所在的table
         # table = re.search('<table.*?id="schedule" data-cols-to-freeze=",1">(.*?)</table>', html, re.DOTALL).group(1)
         table = re.search('<table.*?id="schedule" data-cols-to-freeze=",1">(.*?)</table>', html, re.DOTALL)
+
         if table is None:
             return None
         else:
             table = table.group(1)
+
         table = table + "</tbody>"
         # print(table)
 
@@ -155,10 +167,7 @@ class NBASpider:
 
         # 3. 正则从table中匹配出表的各行数据
         datas = self.get_schedule_datas(table) # datas是在這裡產生的
-
-
-
-
+        # print(datas)
 
 
         return heads, datas
@@ -169,11 +178,16 @@ class NBASpider:
         csv_writer = csv.DictWriter(f, fieldnames=heads)
         csv_writer.writeheader()
 
+        heads[5] = 'PTS_v'
         for row in rows:
+            # print('hello')
+            # print(row) # <- row沒問題
             dict = {}
             if heads and len(heads) > 0:
                 for i, v in enumerate(heads):
-                    dict[v] = row[i] if len(row) > i else ""
+                    dict[v] = row[i] if len(row) > i else "" 
+
+            # print(dict)
             csv_writer.writerow(dict)
 
 
@@ -228,10 +242,10 @@ class NBASpider:
         f.close()
 
     def crawl_advanced_team(self):
-        start_year = 2020
+        start_year = 2024
         end_year = 2024
 
-        for year in range(start_year, end_year):
+        for year in range(start_year, end_year + 1):
             res = self.send(self.advanced_team_url.format(year)) # <- 真的有爬到東西
 
             heads, datas = self.parse_advanced_team(res) # <- 問題出在這個parse_advanced_team
@@ -242,7 +256,7 @@ class NBASpider:
     def crawl_team_opponent(self): 
         # print('line 171 is undergoing execution')
 
-        start_year = 2021
+        start_year = 2015
         end_year = 2024
 
         for year in range(start_year, end_year + 1):
@@ -269,7 +283,7 @@ class NBASpider:
 
 
 
-        start_year = 2020
+        start_year = 2015
         end_year = 2024
         # a = range(start_year, end_year + 1) # 整數產生器
         # years = [str(x) for x in a]
@@ -278,13 +292,16 @@ class NBASpider:
         for year in range(start_year, end_year + 1):
         #    months = ["october", "november", "december", "january", "february", "march", "april", "may", "june", "july"] # 這個必須要加上july因為 -> nba他媽的每一年季後賽開打的時間不一樣, 更間接導致結束的時間也不一樣
             for month in months:
+                # string = "now the month is {}"
+                # print(string.format(month))
+
                 html = self.send(self.schedule_url.format(year, month))
                 if self.parse_schedule_info(html) is None:
                     # print("now it's %s and self.parse_schedule_info return None", month)
                     continue
                 else:
                     heads, datas = self.parse_schedule_info(html) # <- 現在問題是datas是空的東西
-                
+                    # print(list(datas)) # <- 做到這邊datas都是沒問題的
                     # 3. 保存数据为csv
                     self.save_csv("schedule_" + month + "_" + str(year) , heads, datas)
             
@@ -307,9 +324,9 @@ class NBASpider:
             # self.save_csv("schedule_"+month, heads, datas)
   
     def crawl(self):
-        # self.crawl_schedule()
+        self.crawl_schedule()
         # self.crawl_team_opponent()
-        self.crawl_advanced_team()
+        # self.crawl_advanced_team()
 
 if __name__ == '__main__':
     # 运行爬虫
