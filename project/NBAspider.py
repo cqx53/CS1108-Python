@@ -194,12 +194,29 @@ class NBASpider:
 
 
     def get_advanced_team_datas(self, table):
+        # print(table.get())
+        # with open("table_dump.html", "w", encoding="utf-8") as f:
+        #     f.write(table.get())
+
         trs = table.xpath('./tbody/tr')
+
+        # 遍歷所有的球隊的html
         for tr in trs:
-            rk = tr.xpath('./th/text()').get()
+            
+            rk = (      tr.xpath('./th/text()')      ).get() # 把tr.xpath('./th/text()')的html source code取出來, 用.get()函數
             datas = tr.xpath('./td[@data-stat!="DUMMY"]/text()').getall()
+
+            # print(datas)
+            # print(len(list(datas)))
+
+            if datas[0] != '*':  
+                datas.insert(0, '*')  # 所有元素向後移一個位置
+
             datas[0] = tr.xpath('./td/a/text()').get()
+
             datas.insert(0, rk)
+
+            # print(list(datas))
             yield datas
 
     # bug fixED: https://blog.csdn.net/qq_63585329/article/details/143810588
@@ -228,8 +245,16 @@ class NBASpider:
             if '\xa0' in head:
                 continue
             heads.append(head)
+
+        # print(heads)
         # 3. 匹配出表的各行数据
         table_data = self.get_advanced_team_datas(table)
+
+        # 上面勇士解析出來的東西就是錯位的
+        # for debugging
+        # for data in list(table_data):
+        #     print(data)
+
         return heads, table_data
     
     def save_csv_advanced(self, title, heads, rows):
@@ -242,7 +267,7 @@ class NBASpider:
         f.close()
 
     def crawl_advanced_team(self):
-        start_year = 2024
+        start_year = 2015
         end_year = 2024
 
         for year in range(start_year, end_year + 1):
@@ -324,8 +349,8 @@ class NBASpider:
             # self.save_csv("schedule_"+month, heads, datas)
   
     def crawl(self):
-        self.crawl_schedule()
-        # self.crawl_team_opponent()
+        # self.crawl_schedule()
+        self.crawl_team_opponent()
         # self.crawl_advanced_team()
 
 if __name__ == '__main__':
