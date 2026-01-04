@@ -8,6 +8,9 @@ import time
 比如你写到'%Y'就会把time.struct_time（算出来）的年捞出来
 """
 #print(time.strftime(f'%Y-%m-%d %H:%M:%S', time.localtime()))
-a = time.localtime()
-time.sleep(61)
-print(time.strftime(f'%Y-%m-%d %H:%M:%S', a))
+#a = time.localtime()
+#time.sleep(61)
+#print(time.strftime(f'%Y-%m-%d %H:%M:%S', a))
+
+if __name__ == '__main__':
+    print(time.time())
